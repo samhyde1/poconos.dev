@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poconos</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{position:fixed;inset:0;width:100%;height:100%}</style>
+</head>
+<body>
+<canvas id="c" aria-label="Warp Drive animated background"></canvas>
+<script>
+// Warp Drive Shader (21st.dev component pasted by Sam), same GLSL, run with
+// plain WebGL instead of three.js so it's one file with nothing to load.
+// The tunnel's eye follows the mouse or finger.
+const FRAG = `
+precision highp float;
+uniform vec2 iResolution;
+uniform float iTime;
+uniform vec2 iMouse;
+void main() {
+  vec2 uv    = (gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y;
+  vec2 mouse = (iMouse      - 0.5 * iResolution.xy) / iResolution.y;
+  float t = iTime * 0.5;
+  uv -= mouse;
+  float r = length(uv) * 0.8;
+  vec3 finalColor = vec3(0.0);
+  float offset = 0.01;
+  finalColor.r = pow(fract(0.5 / length(uv + vec2(offset, 0.0)) + t * 2.0), 15.0);
+  finalColor.g = pow(fract(0.5 / length(uv)                  + t * 2.0), 15.0);
+  finalColor.b = pow(fract(0.5 / length(uv - vec2(offset, 0.0)) + t * 2.0), 15.0);
+  float fade = smoothstep(0.0, 0.1, r);
+  finalColor *= fade;
+  gl_FragColor = vec4(finalColor, 1.0);
+}`;
+const VERT = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.0,1.0); }`;
+const c = document.getElementById('c'), gl = c.getContext('webgl', {antialias:true});
+function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);return x}
+const prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,VERT));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);gl.useProgram(prog);
+gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+const pl=gl.getAttribLocation(prog,'p');gl.enableVertexAttribArray(pl);gl.vertexAttribPointer(pl,2,gl.FLOAT,false,0,0);
+const uR=gl.getUniformLocation(prog,'iResolution'),uT=gl.getUniformLocation(prog,'iTime'),uM=gl.getUniformLocation(prog,'iMouse');
+let D=1,mx=innerWidth/2,my=innerHeight/2;
+function size(){D=Math.min(devicePixelRatio||1,2);c.width=innerWidth*D;c.height=innerHeight*D;gl.viewport(0,0,c.width,c.height)}
+size();addEventListener('resize',size);
+function move(e){const s=e.touches?e.touches[0]:e;if(!s)return;mx=s.clientX;my=s.clientY}
+addEventListener('mousemove',move);addEventListener('touchmove',move,{passive:true});addEventListener('touchstart',move,{passive:true});
+const t0=performance.now();
+(function f(now){gl.uniform2f(uR,c.width,c.height);gl.uniform1f(uT,(now-t0)/1000);gl.uniform2f(uM,mx*D,(innerHeight-my)*D);
+gl.drawArrays(gl.TRIANGLE_STRIP,0,4);requestAnimationFrame(f)})(t0);
+</script>
+<div style="position:fixed;inset:0;z-index:10;display:grid;place-items:center;pointer-events:none"><h1 style="margin:0;color:#fff;font:600 clamp(44px,9vw,112px)/1 -apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;letter-spacing:-.035em;text-shadow:0 0 40px rgba(0,0,0,.55)">Poconos</h1></div></body>
+</html>
